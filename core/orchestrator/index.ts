@@ -40,6 +40,33 @@ export async function currentProducts(): Promise<Products> {
   return store.read<Products>('products', EMPTY_PRODUCTS);
 }
 
+/**
+ * Candidates that passed validation, kept across missions.
+ *
+ * A mission clears the working set, and without this a validated product —
+ * hours of real research — would be destroyed by the next command. The library
+ * is what the brand, storefront and ads steps build from once the mission that
+ * found the product is over.
+ */
+export async function library(): Promise<ProductCandidate[]> {
+  return store.read<ProductCandidate[]>('library', []);
+}
+
+/** Exported so the rule it enforces can be tested directly. */
+export async function keepValidated(previous: Products): Promise<void> {
+  const keep = previous.candidates.filter((c) => c.stage === 'VALIDATED');
+  if (!keep.length) return;
+  await store.update<ProductCandidate[]>('library', [], (lib) => {
+    for (const c of keep) {
+      const i = lib.findIndex((x) => x.id === c.id);
+      if (i >= 0) lib[i] = c;
+      else lib.push(c);
+    }
+    return lib;
+  });
+  emit({ kind: 'system', message: `${keep.length} validated candidate${keep.length === 1 ? '' : 's'} kept in the library before the new mission cleared the working set.` });
+}
+
 async function readControl(): Promise<Mission['control']> {
   const m = await currentMission();
   return m?.control ?? 'RUN';
@@ -163,6 +190,37 @@ export const DEFAULT_ALLOCATION: Record<string, number> = {
   supplier: 0.2,
 };
 
+/**
+ * Recovers a mission left mid-flight by a process that died.
+ *
+ * Nothing runs after a restart, so a mission still marked RESEARCHING is a
+ * mission nobody is working on. Saying so is the honest state; leaving it
+ * would have the interface report progress that is not happening. Validated
+ * candidates are kept, so the work itself is not what is lost.
+ */
+export async function recoverInterrupted(): Promise<Mission | null> {
+  const mission = await currentMission();
+  if (!mission) return null;
+  const live: Mission['status'][] = ['INTERPRETING', 'RESEARCHING', 'VALIDATING', 'BUILDING'];
+  if (!live.includes(mission.status)) return mission;
+
+  await keepValidated(await currentProducts());
+  const patched = await patchMission((m) => {
+    m.status = 'STOPPED';
+    m.finishedAt = nowIso();
+    m.activeAgents = [];
+    m.control = 'STOP';
+    m.failure = 'Interrupted: the process running this mission stopped before it finished.';
+  });
+  emit({
+    kind: 'mission',
+    missionId: mission.id,
+    level: 'warn',
+    message: 'A mission was left unfinished by a previous run and has been closed. Anything it validated is kept; give the objective again to resume the search.',
+  });
+  return patched;
+}
+
 export async function startMission(opts: StartOptions): Promise<Mission> {
   const interpretation = opts.interpretation ?? interpret(opts.utterance);
   const finalTarget = opts.finalTarget ?? Number(interpretation.params['target'] ?? 3);
@@ -185,6 +243,7 @@ export async function startMission(opts: StartOptions): Promise<Mission> {
     failure: null,
   };
   await store.write('mission', mission);
+  await keepValidated(await currentProducts());
   await store.write<Products>('products', { missionId: mission.id, candidates: [] });
   emit({ kind: 'mission', missionId: mission.id, message: `Mission accepted: ${mission.objective}`, data: { intent: mission.intent } });
 

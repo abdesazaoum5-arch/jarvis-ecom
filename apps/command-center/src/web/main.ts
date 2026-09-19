@@ -702,6 +702,26 @@ function showSpoken(text: string): void {
   sayTimer = window.setTimeout(() => el.classList.remove('on'), Math.max(4000, text.length * 70));
 }
 
+/*
+ * A storefront JARVIS built is put on screen as the storefront. Showing it in
+ * place is the difference between reporting work and handing over the result.
+ */
+function showSite(url: string): void {
+  const wrap = $('takeover-site');
+  const frame = $('takeover-site-frame') as HTMLIFrameElement;
+  const open = $('takeover-site-open') as HTMLAnchorElement;
+  frame.src = url;
+  open.href = url;
+  wrap.hidden = false;
+  setView('takeover');
+}
+
+function hideSite(): void {
+  const wrap = $('takeover-site');
+  wrap.hidden = true;
+  ($('takeover-site-frame') as HTMLIFrameElement).src = 'about:blank';
+}
+
 async function send(utterance: string): Promise<void> {
   const text = utterance.trim();
   if (!text) return;
@@ -714,7 +734,7 @@ async function send(utterance: string): Promise<void> {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ utterance: text }),
     });
-    const reply = (await res.json()) as { speech: string; view?: 'detail' | 'plain' | 'input' };
+    const reply = (await res.json()) as { speech: string; view?: 'detail' | 'plain' | 'input'; site?: string };
     $('reply').textContent = reply.speech;
     showSpoken(reply.speech);
     // What the operator asked to see, they see.
@@ -724,6 +744,7 @@ async function send(utterance: string): Promise<void> {
       if (view === 'rest') $('rest-utterance').focus();
       else openTyping();
     }
+    if (reply.site) showSite(reply.site);
     if (voiceSupport.synthesis) voice.say(reply.speech);
     scheduleRefresh();
   } catch (err) {
@@ -753,9 +774,12 @@ takeoverInput.addEventListener('keydown', (e) => {
 });
 takeoverInput.addEventListener('blur', closeTyping);
 $('takeover').addEventListener('click', (e) => {
-  if ((e.target as HTMLElement).closest('#takeover-input-wrap')) return;
+  const el = e.target as HTMLElement;
+  // The typing field and the storefront panel own their own clicks.
+  if (el.closest('#takeover-input-wrap') || el.closest('#takeover-site')) return;
   openTyping();
 });
+$('takeover-site-close').addEventListener('click', hideSite);
 window.addEventListener('keydown', (e) => {
   const key = e as KeyboardEvent;
   if (view !== 'takeover') return;
@@ -763,6 +787,7 @@ window.addEventListener('keydown', (e) => {
   const target = key.target as HTMLElement | null;
   if (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
   if (key.key.length !== 1 && key.key !== '/') return;
+  if (!$('takeover-site').hidden && key.key !== '/') return;
   openTyping();
   if (key.key !== '/') takeoverInput.value = key.key;
   key.preventDefault();

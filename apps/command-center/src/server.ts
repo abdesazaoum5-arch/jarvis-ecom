@@ -66,8 +66,18 @@ async function readBody(req: http.IncomingMessage): Promise<Record<string, unkno
 }
 
 async function serveStatic(res: http.ServerResponse, urlPath: string): Promise<boolean> {
-  const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
-  const base = rel.startsWith('screenshots/') ? path.dirname(PATHS.screenshots) : PATHS.web;
+  let rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
+  // Screenshots and generated storefronts live outside the web root, each
+  // served from its own base so the traversal guard below still applies.
+  let base = PATHS.web;
+  if (rel.startsWith('screenshots/')) {
+    base = path.dirname(PATHS.screenshots);
+  } else if (rel === 'site' || rel.startsWith('site/')) {
+    base = PATHS.sites;
+    rel = rel.slice('site/'.length);
+    // A bare /site/<id>/ opens that storefront's home page.
+    if (rel === '' || rel.endsWith('/')) rel += 'index.html';
+  }
   const full = path.resolve(base, rel);
   // Path traversal guard: the resolved file must stay inside the served root.
   if (!full.startsWith(path.resolve(base))) {
@@ -194,6 +204,8 @@ export async function start(): Promise<http.Server> {
   await new Promise<void>((resolve) => server.listen(PORT, resolve));
   tail = followLog();
   emit({ kind: 'system', message: `Command center listening on port ${PORT}.` });
+  // A mission left running by a process that died is nobody's work now.
+  await orchestrator.recoverInterrupted();
   // Probe capabilities in the background so the interface can boot immediately.
   void (async () => {
     await probeEnvironment();

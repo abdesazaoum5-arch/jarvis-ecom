@@ -32,6 +32,8 @@ export interface Reply {
    * does no work for it, which is why these never touch mission state.
    */
   view?: 'detail' | 'plain' | 'input';
+  /** Set when the reply produced something the operator can open. */
+  site?: string;
 }
 
 export async function respond(utterance: string): Promise<Reply> {
@@ -189,7 +191,9 @@ async function analyse(): Promise<Reply> {
 
 async function buildStep(step: 'brand' | 'store' | 'ads' | 'cro', subject?: string): Promise<Reply> {
   const products = await orchestrator.currentProducts();
-  const candidate = pick(products.candidates, subject);
+  // A product validated by an earlier mission is still a product to build on.
+  const pool = products.candidates.length ? products.candidates : await orchestrator.library();
+  const candidate = pick(pool, subject);
   if (!candidate) {
     return { intent: step.toUpperCase(), speech: 'I need a validated candidate to build from. Run a discovery mission first, or name the product.', data: null };
   }
@@ -199,19 +203,21 @@ async function buildStep(step: 'brand' | 'store' | 'ads' | 'cro', subject?: stri
   try {
     if (step === 'brand') {
       await brandAgent.run(candidate, ctx);
-      await persist(products.candidates, candidate);
+      await persist(pool, candidate);
       return { intent: 'BUILD_BRAND', speech: `Brand built for ${candidate.name}: ${candidate.brand?.name} — ${candidate.brand?.positioning}`, data: { brand: candidate.brand } };
     }
     if (step === 'store') {
       if (!candidate.brand) await brandAgent.run(candidate, ctx);
       const { storefront, offers } = await shopifyAgent.run(candidate, ctx);
       await store.update<Record<string, unknown>>('brand', {}, (s) => ({ ...s, [candidate.id]: { brand: candidate.brand, storefront, offers } }));
-      await persist(products.candidates, candidate);
+      await persist(pool, candidate);
       const flagged = storefront.pages.filter((p) => p.flags.length).length;
+      const site = `/site/${candidate.id}/index.html`;
       return {
         intent: 'BUILD_STORE',
-        speech: `Storefront generated for ${candidate.name}: ${storefront.pages.length} pages and ${offers.length} offer tier${offers.length === 1 ? '' : 's'} priced off the real contribution. ${flagged} page${flagged === 1 ? '' : 's'} flagged for human review before publishing. Nothing has been pushed to Shopify — that adapter is not connected.`,
-        data: { storefront, offers },
+        speech: `Storefront built for ${candidate.name}: ${storefront.pages.length} pages and ${offers.length} offer tier${offers.length === 1 ? '' : 's'} priced off the real contribution, in ${candidate.brand?.name ?? 'the brand'}'s own colours and type. It is open in your browser. ${flagged} page${flagged === 1 ? '' : 's'} are marked as not ready to publish, and nothing has been pushed to Shopify — that adapter is not connected.`,
+        data: { storefront, offers, site },
+        site,
       };
     }
     if (step === 'cro') {

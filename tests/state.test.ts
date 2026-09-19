@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import * as store from '../core/state/store.ts';
-import { PATHS } from '../core/util/paths.ts';
 
-const file = path.join(PATHS.state, 'analytics.json');
+// Resolved through the store so a sandboxed JARVIS_STATE_DIR is honoured.
+const file = path.join(store.stateDir(), 'analytics.json');
 let saved: string | null = null;
 
 before(() => {

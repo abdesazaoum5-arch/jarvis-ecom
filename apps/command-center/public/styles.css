@@ -887,3 +887,47 @@ button, input, select { font: inherit; color: inherit; }
   color: rgba(238, 246, 255, 0.26);
   pointer-events: none;
 }
+
+/* ------------------------------------------------------------------ */
+/* The built storefront, shown in place                                */
+/* ------------------------------------------------------------------ */
+#takeover-site {
+  position: absolute;
+  inset: 40px 40px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+  z-index: 6;
+}
+#takeover-site-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 14px;
+  background: #0b0f14;
+  border-bottom: 1px solid var(--edge);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+#takeover-site-title { flex: 1; color: var(--text-2); }
+#takeover-site-bar a,
+#takeover-site-bar button {
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  padding: 4px 10px;
+  font: inherit;
+  letter-spacing: 0.14em;
+  text-decoration: none;
+  cursor: pointer;
+}
+#takeover-site-bar a:hover,
+#takeover-site-bar button:hover { border-color: var(--accent); }
+#takeover-site-frame { flex: 1; width: 100%; border: 0; background: #fff; }
+@media (max-width: 720px) { #takeover-site { inset: 12px; } }

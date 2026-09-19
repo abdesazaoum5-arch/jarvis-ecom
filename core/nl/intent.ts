@@ -144,7 +144,7 @@ const RULES: Rule[] = [
   },
   {
     intent: 'BUILD_STORE',
-    patterns: [/\b(build|create|maak|bouw).{0,20}\b(shopify|store|storefront|webshop|winkel)\b/i],
+    patterns: [/\b(build|create|maak|bouw).{0,24}\b(shopify|store|storefront|webshop|winkel|website|site)\b/i],
     objective: (_m, t) => `Build a Shopify-ready storefront${target(t) ? ` for ${target(t)}` : ''}.`,
     params: (_m, t): Record<string, string | number | boolean> => {
       const subject = target(t);

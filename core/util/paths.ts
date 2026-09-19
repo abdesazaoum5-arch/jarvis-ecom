@@ -14,4 +14,5 @@ export const PATHS = {
   web: path.join(ROOT, 'apps', 'command-center', 'public'),
   screenshots: path.join(ROOT, 'jarvis', 'screenshots'),
   artifacts: path.join(ROOT, 'data', 'artifacts'),
+  sites: path.join(ROOT, 'jarvis', 'sites'),
 } as const;

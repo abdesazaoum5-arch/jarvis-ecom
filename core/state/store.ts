@@ -14,6 +14,8 @@ import { PATHS } from '../util/paths.ts';
 export type StateFile =
   | 'mission'
   | 'products'
+  /* Validated candidates, kept across missions; see orchestrator.library(). */
+  | 'library'
   | 'suppliers'
   | 'competitors'
   | 'economics'
@@ -27,12 +29,21 @@ export type StateFile =
 
 const queues = new Map<string, Promise<unknown>>();
 
+/**
+ * Resolved per call, never cached: a test run points JARVIS_STATE_DIR at a
+ * sandbox so it can exercise real reads and writes without touching the
+ * operator's live mission state.
+ */
+export function stateDir(): string {
+  return process.env['JARVIS_STATE_DIR'] ?? PATHS.state;
+}
+
 function filePath(name: StateFile): string {
-  return path.join(PATHS.state, `${name}.json`);
+  return path.join(stateDir(), `${name}.json`);
 }
 
 export function ensureStateDir(): void {
-  fs.mkdirSync(PATHS.state, { recursive: true });
+  fs.mkdirSync(stateDir(), { recursive: true });
   fs.mkdirSync(PATHS.logs, { recursive: true });
 }
 

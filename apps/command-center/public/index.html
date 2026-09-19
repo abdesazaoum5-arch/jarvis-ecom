@@ -45,6 +45,15 @@
     <div id="takeover-target"></div>
   </div>
   <div id="takeover-reply" aria-live="polite"></div>
+  <!-- A site JARVIS built is shown as the site, not as a description of it. -->
+  <div id="takeover-site" hidden>
+    <div id="takeover-site-bar">
+      <span id="takeover-site-title">Storefront</span>
+      <a id="takeover-site-open" href="#" target="_blank" rel="noopener">Open in a tab</a>
+      <button id="takeover-site-close" type="button">Close</button>
+    </div>
+    <iframe id="takeover-site-frame" title="The storefront JARVIS built" src="about:blank"></iframe>
+  </div>
   <div id="takeover-nothing">No screen to show. JARVIS is working without a browser view.</div>
   <div id="takeover-input-wrap">
     <label class="sr" for="takeover-utterance">Speak to JARVIS</label>

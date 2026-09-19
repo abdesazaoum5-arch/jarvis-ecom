@@ -1,4 +1,8 @@
+import fsp from 'node:fs/promises';
+import path from 'node:path';
 import type { Agent, AgentContext } from '../../core/agent/base.ts';
+import { PATHS } from '../../core/util/paths.ts';
+import { renderSite } from './render.ts';
 import type { Offer, ProductCandidate, Storefront, StorefrontPage } from '../../core/types/index.ts';
 
 /**
@@ -90,8 +94,21 @@ export const shopifyAgent: Agent<ProductCandidate, { storefront: Storefront; off
       generatedAt: new Date().toISOString(),
     };
 
+    // Render the storefront into a site the operator can actually open. The
+    // pages above are the source of truth; this only gives them a surface.
+    const dir = path.join(PATHS.sites, candidate.id);
+    await fsp.mkdir(dir, { recursive: true });
+    for (const file of renderSite(candidate, storefront, offers)) {
+      await fsp.writeFile(path.join(dir, file.path), file.content, 'utf8');
+    }
+    const url = `/site/${candidate.id}/index.html`;
+
     const flagged = pages.filter((p) => p.flags.length).length;
     ctx.say(`Storefront generated: ${pages.length} pages, ${offers.length} offer tier(s), ${flagged} page(s) flagged for human review before publishing.`, { data: { candidateId: candidate.id } });
+    ctx.say(`Site built and openable at ${url}.`, {
+      target: { site: 'localhost', url, action: 'Built the storefront' },
+      data: { candidateId: candidate.id, siteUrl: url },
+    });
     return { storefront, offers };
   },
 };
