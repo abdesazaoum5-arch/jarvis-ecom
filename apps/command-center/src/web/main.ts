@@ -9,7 +9,7 @@
 import { runBoot, BOOT_DURATION } from './boot.ts';
 import { Orb, type OrbState } from './orb.ts';
 import { NodeField, type NodeStage } from './nodes.ts';
-import { confirmMicrophone, detect, Voice } from './voice.ts';
+import { confirmMicrophone, detect, Voice, WakeListener } from './voice.ts';
 
 interface Snapshot {
   mission: MissionView | null;
@@ -627,7 +627,12 @@ void confirmMicrophone().then(({ usable, detail }) => {
     const mic = $('mic') as HTMLButtonElement;
     mic.disabled = true;
     mic.title = detail;
+    $('rest-hint').textContent = 'press any key to type';
+    return;
   }
+  // Listening starts only once the browser has confirmed the microphone, so the
+  // interface never claims to be listening when it cannot.
+  wake.start();
 });
 
 const voice = new Voice(
@@ -641,7 +646,43 @@ const voice = new Voice(
     setPill(listening ? 'listening' : null);
   },
 );
-voice.onSpeaking = (speaking) => setPill(speaking ? 'speaking' : null);
+/*
+ * The system listens for its own name from the moment it is allowed to. Saying
+ * "Jarvis" wakes it; whatever follows in the same breath is the command. Until
+ * the name is heard nothing leaves the page.
+ */
+const wake = new WakeListener(
+  () => {
+    setPill('listening');
+    restOrb.pulse(1);
+    workOrb.pulse(1);
+    $('rest-hint').textContent = 'listening';
+  },
+  (command) => {
+    setPill(null);
+    $('rest-hint').textContent = HINT;
+    void send(command);
+  },
+  (heard) => {
+    // Shows that it is genuinely hearing, without sending anything anywhere.
+    if (view === 'rest') $('rest-hint').textContent = heard.slice(-70);
+  },
+  (reason) => {
+    $('voice-state').textContent = 'voice: blocked';
+    $('voice-state').title = reason;
+    $('rest-hint').textContent = reason;
+  },
+);
+
+const HINT = 'say \u201cJarvis\u201d, or press any key to type';
+$('rest-hint').textContent = wake.available ? HINT : 'press any key to type';
+
+voice.onSpeaking = (speaking) => {
+  setPill(speaking ? 'speaking' : null);
+  // A listener left running hears the reply and answers itself.
+  if (speaking) wake.stop();
+  else if (wake.available) wake.start();
+};
 // A microphone that fails silently reads as a broken system. Whatever the
 // browser reports is shown where the operator is already looking.
 voice.onProblem = (reason) => {
@@ -683,7 +724,7 @@ async function send(utterance: string): Promise<void> {
       if (view === 'rest') $('rest-utterance').focus();
       else openTyping();
     }
-    if (voiceSupport.synthesis && voice.available) voice.say(reply.speech);
+    if (voiceSupport.synthesis) voice.say(reply.speech);
     scheduleRefresh();
   } catch (err) {
     const message = `Command failed: ${(err as Error).message}`;
@@ -747,7 +788,12 @@ $('send').addEventListener('click', () => void send(($('utterance') as HTMLInput
 $('utterance').addEventListener('keydown', (e) => {
   if ((e as KeyboardEvent).key === 'Enter') void send(($('utterance') as HTMLInputElement).value);
 });
-$('mic').addEventListener('click', () => voice.toggle());
+$('mic').addEventListener('click', () => {
+  // Push-to-talk and the wake listener cannot hold the microphone at once.
+  if (!voice.listening) wake.stop();
+  else if (wake.available) wake.start();
+  voice.toggle();
+});
 
 for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-control]')) {
   btn.addEventListener('click', async () => {

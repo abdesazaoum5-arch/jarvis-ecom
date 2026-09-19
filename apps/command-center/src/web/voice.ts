@@ -88,6 +88,114 @@ export async function confirmMicrophone(): Promise<{ usable: boolean; detail: st
   }
 }
 
+/**
+ * Always-on wake word.
+ *
+ * Keeps recognition running and watches for the operator's name. Until the name
+ * is heard nothing is sent anywhere: the transcript is examined in the page and
+ * discarded. After the name, what follows is taken as the command.
+ *
+ * Recognition ends by itself constantly — on a pause, on silence, on an error —
+ * so it is restarted rather than assumed to still be running. Without that the
+ * system appears to be listening while it is deaf.
+ */
+export class WakeListener {
+  #rec: SpeechRecognitionLike | null = null;
+  #running = false;
+  #stopped = true;
+  #heard = '';
+  #restart = 0;
+
+  constructor(
+    private readonly onWake: () => void,
+    private readonly onCommand: (text: string) => void,
+    private readonly onHear: (text: string) => void,
+    private readonly onProblem: (reason: string) => void,
+  ) {
+    const Ctor = recognitionCtor();
+    if (!Ctor) return;
+    const rec = new Ctor();
+    rec.lang = navigator.language || 'en-US';
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = (e) => {
+      const last = e.results[e.results.length - 1];
+      if (!last) return;
+      const alt = last[0];
+      if (!alt) return;
+      this.#consider(alt.transcript, last.isFinal);
+    };
+    rec.onerror = (e) => {
+      // 'no-speech' and 'aborted' are ordinary in a listener that runs all day.
+      if (e.error !== 'no-speech' && e.error !== 'aborted') this.onProblem(reasonFor(e.error));
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') this.stop();
+    };
+    rec.onend = () => {
+      this.#running = false;
+      if (!this.#stopped) this.#schedule();
+    };
+    this.#rec = rec;
+  }
+
+  get available(): boolean {
+    return this.#rec !== null;
+  }
+
+  /** True while the recogniser is actually running, not merely wanted. */
+  get live(): boolean {
+    return this.#running;
+  }
+
+  start(): void {
+    this.#stopped = false;
+    this.#schedule(0);
+  }
+
+  stop(): void {
+    this.#stopped = true;
+    window.clearTimeout(this.#restart);
+    try {
+      this.#rec?.stop();
+    } catch {
+      /* Already stopped; nothing to undo. */
+    }
+  }
+
+  #schedule(delay = 400): void {
+    window.clearTimeout(this.#restart);
+    this.#restart = window.setTimeout(() => {
+      if (this.#stopped || this.#running || !this.#rec) return;
+      try {
+        this.#rec.start();
+        this.#running = true;
+      } catch {
+        // Starting while it is already starting throws; the next end event
+        // brings it back round.
+      }
+    }, delay);
+  }
+
+  #consider(transcript: string, final: boolean): void {
+    const text = transcript.trim();
+    if (!text) return;
+    this.onHear(text);
+
+    const wake = /\b(?:hey|hi|hallo|hé|he)?\s*jarvis\b/i.exec(text);
+    if (!wake) return;
+
+    // Everything after the name is the command. Nothing before it is used.
+    const after = text.slice(wake.index + wake[0].length).replace(/^[\s,.:;!?-]+/, '');
+    if (this.#heard !== text) {
+      this.#heard = text;
+      this.onWake();
+    }
+    if (final && after.length > 1) {
+      this.#heard = '';
+      this.onCommand(after);
+    }
+  }
+}
+
 export class Voice {
   #rec: SpeechRecognitionLike | null = null;
   #listening = false;
