@@ -15,3 +15,6 @@ data/**/*.json
 
 # The template is safe to commit; it holds no values.
 !.env.example
+
+# Storefronts JARVIS builds: generated output, not source.
+jarvis/sites/
