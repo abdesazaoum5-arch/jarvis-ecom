@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en" data-motion="on" data-contrast="normal">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>JARVIS ECOM</title>
+<meta name="description" content="Autonomous e-commerce research and build operating system." />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<!-- Boot: the system powers itself on before anything else exists. -->
+<div id="boot" role="status" aria-live="polite">
+  <canvas id="boot-canvas" aria-hidden="true"></canvas>
+  <div id="boot-line">initialising</div>
+  <button id="boot-skip" type="button">Skip</button>
+</div>
+
+<!-- Rest: what JARVIS looks like when it is not working. Presence, not interface. -->
+<div id="rest" aria-label="JARVIS at rest">
+  <canvas id="rest-canvas" aria-hidden="true"></canvas>
+  <div id="rest-vision" aria-hidden="true"></div>
+  <div id="rest-readout">
+    <div id="rest-clock">--:--</div>
+    <div id="rest-date"></div>
+  </div>
+  <div id="rest-hint">press / or speak</div>
+  <div id="rest-input-wrap">
+    <label class="sr" for="rest-utterance">Speak to JARVIS</label>
+    <input id="rest-utterance" type="text" autocomplete="off" spellcheck="false" placeholder="Jarvis…" />
+  </div>
+</div>
+
+<div id="shell">
+
+  <!-- TOP: system status -->
+  <header class="panel" id="status-panel">
+    <div id="status-bar">
+      <div class="brand">J.A.R.V.I.S<small>ECOM</small></div>
+      <div class="stat"><span class="k">System</span><span class="v ok" id="s-system">online</span></div>
+      <div class="stat"><span class="k">Permission</span><span class="v" id="s-perm">0 · research only</span></div>
+      <div class="stat"><span class="k">Research</span><span class="v" id="s-research">—</span></div>
+      <div class="stat"><span class="k">Browser</span><span class="v" id="s-browser">—</span></div>
+      <div class="stat"><span class="k">Sources</span><span class="v" id="s-sources">0</span></div>
+      <div class="stat"><span class="k">Elapsed</span><span class="v" id="s-elapsed">—</span></div>
+      <div id="status-spacer"></div>
+      <div id="adapters"></div>
+      <button class="icon-btn" id="t-motion" type="button" aria-pressed="true" title="Toggle animation">MOTION</button>
+      <button class="icon-btn" id="t-contrast" type="button" aria-pressed="false" title="Toggle high contrast">CONTRAST</button>
+      <button class="icon-btn" id="t-shutdown" type="button" title="Shut the interface down">SHUTDOWN</button>
+      <div class="stat" id="hud-clock-wrap"><span class="v" id="hud-clock">--:--:--</span></div>
+    </div>
+  </header>
+
+  <div id="main">
+
+    <!-- LEFT: mission control -->
+    <div id="left-col">
+    <section class="panel" id="sys-panel" aria-label="System monitor">
+      <div class="panel-head"><span>Sys Monitor</span><span id="sys-uptime">00:00</span></div>
+      <div class="panel-body" id="sys-body"></div>
+    </section>
+
+    <section class="panel" id="mission-panel" aria-label="Mission control">
+      <div class="panel-head"><span>Mission Control</span><span id="mission-status">idle</span></div>
+      <div class="panel-body" id="mission-body">
+        <p class="empty">No mission is running. Give JARVIS an objective in the command bar.</p>
+      </div>
+    </section>
+    </div>
+
+    <!-- CENTRE: the core and the candidate field -->
+    <div id="centre">
+      <section class="panel" id="core-stage" aria-label="JARVIS core">
+        <div id="vision" aria-hidden="true"></div>
+        <canvas id="core-canvas" aria-hidden="true"></canvas>
+        <div id="core-readout">
+          <div id="core-state">standby</div>
+          <div id="core-action">Awaiting objective.</div>
+          <div id="core-target"></div>
+        </div>
+        <div id="status-pill"><canvas id="pill-wave" aria-hidden="true"></canvas><span id="pill-label">standby</span></div>
+      </section>
+
+      <section class="panel" id="node-field" aria-label="Candidate field">
+        <canvas id="node-canvas"></canvas>
+        <div class="node-legend">
+          <span><b>◇</b> discovered</span>
+          <span><b>◈</b> investigating</span>
+          <span><b>◆</b> validated</span>
+          <span><b>✕</b> rejected</span>
+        </div>
+      </section>
+    </div>
+
+    <!-- RIGHT: the activity stream and the command surface, stacked -->
+    <div id="right-col">
+      <section class="panel" id="log-panel" aria-label="Activity log">
+        <div class="panel-head"><span>Activity Log</span><span id="ev-count">0</span></div>
+        <div class="panel-body" id="timeline-body" aria-live="polite" aria-relevant="additions"></div>
+      </section>
+
+      <section class="panel" id="command-panel" aria-label="Command">
+        <div class="panel-head"><span>Command Input</span><span id="voice-state">voice: checking</span></div>
+        <div class="panel-body" id="command-panel-body">
+          <div id="command-body">
+            <div id="reply" aria-live="polite"></div>
+            <div id="input-row">
+              <label class="sr" for="utterance">Speak to JARVIS</label>
+              <input id="utterance" type="text" autocomplete="off" spellcheck="false"
+                     placeholder="Type a command or question." />
+              <button class="ctrl primary" id="send" type="button">SEND</button>
+            </div>
+            <div class="ctrl-row big">
+              <button class="ctrl stop wide" data-control="STOP" type="button">INTERRUPT (ESC)</button>
+              <button class="ctrl mic wide" id="mic" type="button" aria-pressed="false">MICROPHONE</button>
+            </div>
+            <div class="ctrl-row">
+              <button class="ctrl" data-control="PAUSE" type="button">PAUSE</button>
+              <button class="ctrl" data-control="RUN" type="button">RESUME</button>
+              <button class="ctrl" data-say="Jarvis, status?" type="button">STATUS</button>
+              <button class="ctrl" data-say="Jarvis, why?" type="button">WHY</button>
+              <button class="ctrl" id="perm-btn" type="button">PERMISSION</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="bottom">
+    <section class="panel" id="intel-panel" aria-label="Live intelligence">
+      <div class="panel-head"><span>Live Intelligence</span><span id="intel-count">0</span></div>
+      <div class="panel-body" id="intel-body">
+        <p class="empty">Discoveries appear here as JARVIS finds them, with the evidence behind each one.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>
