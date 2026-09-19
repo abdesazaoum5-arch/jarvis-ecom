@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-motion="on" data-contrast="normal">
+<html lang="nl" data-motion="on" data-contrast="normal">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -23,11 +23,11 @@
   <div id="rest-readout">
     <div id="rest-clock">--:--</div>
     <div id="rest-date"></div>
-    <div id="rest-state">all systems idle</div>
+    <div id="rest-state">alle systemen in rust</div>
   </div>
-  <div id="rest-hint">press any key to type, or speak</div>
+  <div id="rest-hint">druk op een toets om te typen, of spreek</div>
   <div id="rest-input-wrap">
-    <label class="sr" for="rest-utterance">Speak to JARVIS</label>
+    <label class="sr" for="rest-utterance">Spreek tegen JARVIS</label>
     <input id="rest-utterance" type="text" autocomplete="off" spellcheck="false" placeholder="Jarvis…" />
   </div>
 </div>
@@ -41,7 +41,7 @@
   <div id="takeover-view" aria-hidden="true"></div>
   <canvas id="takeover-orb" aria-hidden="true"></canvas>
   <div id="takeover-line">
-    <div id="takeover-action">Standing by.</div>
+    <div id="takeover-action">Standby.</div>
     <div id="takeover-target"></div>
   </div>
   <div id="takeover-reply" aria-live="polite"></div>
@@ -54,9 +54,9 @@
     </div>
     <iframe id="takeover-site-frame" title="The storefront JARVIS built" src="about:blank"></iframe>
   </div>
-  <div id="takeover-nothing">No screen to show. JARVIS is working without a browser view.</div>
+  <div id="takeover-nothing">Geen scherm om te tonen. JARVIS werkt zonder browservenster.</div>
   <div id="takeover-input-wrap">
-    <label class="sr" for="takeover-utterance">Speak to JARVIS</label>
+    <label class="sr" for="takeover-utterance">Spreek tegen JARVIS</label>
     <input id="takeover-utterance" type="text" autocomplete="off" spellcheck="false" placeholder="Jarvis…" />
   </div>
 </div>
@@ -94,7 +94,7 @@
     <section class="panel" id="mission-panel" aria-label="Mission control">
       <div class="panel-head"><span>Mission Control</span><span id="mission-status">idle</span></div>
       <div class="panel-body" id="mission-body">
-        <p class="empty">No mission is running. Give JARVIS an objective in the command bar.</p>
+        <p class="empty">Er draait geen missie. Geef JARVIS een opdracht in de commandobalk.</p>
       </div>
     </section>
     </div>
@@ -106,7 +106,7 @@
         <canvas id="core-canvas" aria-hidden="true"></canvas>
         <div id="core-readout">
           <div id="core-state">standby</div>
-          <div id="core-action">Awaiting objective.</div>
+          <div id="core-action">Wacht op een opdracht.</div>
           <div id="core-target"></div>
         </div>
         <div id="status-pill"><canvas id="pill-wave" aria-hidden="true"></canvas><span id="pill-label">standby</span></div>
@@ -131,14 +131,14 @@
       </section>
 
       <section class="panel" id="command-panel" aria-label="Command">
-        <div class="panel-head"><span>Command Input</span><span id="voice-state">voice: checking</span></div>
+        <div class="panel-head"><span>Command Input</span><span id="voice-state">stem: nagaan</span></div>
         <div class="panel-body" id="command-panel-body">
           <div id="command-body">
             <div id="reply" aria-live="polite"></div>
             <div id="input-row">
-              <label class="sr" for="utterance">Speak to JARVIS</label>
+              <label class="sr" for="utterance">Spreek tegen JARVIS</label>
               <input id="utterance" type="text" autocomplete="off" spellcheck="false"
-                     placeholder="Type a command or question." />
+                     placeholder="Typ een opdracht of een vraag." />
               <button class="ctrl primary" id="send" type="button">SEND</button>
             </div>
             <div class="ctrl-row big">
@@ -162,7 +162,7 @@
     <section class="panel" id="intel-panel" aria-label="Live intelligence">
       <div class="panel-head"><span>Live Intelligence</span><span id="intel-count">0</span></div>
       <div class="panel-body" id="intel-body">
-        <p class="empty">Discoveries appear here as JARVIS finds them, with the evidence behind each one.</p>
+        <p class="empty">Wat JARVIS vindt verschijnt hier, met het bewijs erbij.</p>
       </div>
     </section>
   </div>

@@ -31,26 +31,26 @@ export interface VoiceSupport {
  * indistinguishable from a broken system.
  */
 const REASONS: Record<string, string> = {
-  'not-allowed': 'The microphone is blocked for this page. Allow it in the browser, or use a page served directly rather than inside a frame.',
-  'service-not-allowed': 'The browser refused the speech service for this page.',
-  network: 'Speech recognition needs to reach the browser vendor\u2019s speech service, and this network does not allow it. Typing works normally.',
-  'no-speech': 'Nothing was heard. Try again closer to the microphone.',
-  aborted: 'Listening was cancelled.',
-  'audio-capture': 'No microphone was found on this device.',
+  'not-allowed': 'De microfoon is geblokkeerd voor deze pagina. Sta hem toe in de browser, of open de pagina rechtstreeks in plaats van in een kader.',
+  'service-not-allowed': 'De browser weigerde de spraakdienst voor deze pagina.',
+  network: 'Spraakherkenning moet de spraakdienst van de browser kunnen bereiken, en dit netwerk laat dat niet toe. Typen werkt gewoon.',
+  'no-speech': 'Ik heb niets gehoord. Probeer het opnieuw, dichter bij de microfoon.',
+  aborted: 'Het luisteren is afgebroken.',
+  'audio-capture': 'Er is geen microfoon gevonden op dit apparaat.',
 };
 
 /** Why the browser refused to speak, in words the operator can act on. */
 const SPEECH_REASONS: Record<string, string> = {
-  'not-allowed': 'The browser will not speak until you interact with the page. Click once anywhere and ask again.',
-  'audio-busy': 'Audio output is busy. Close whatever else is using the speakers and ask again.',
-  'synthesis-failed': 'The speech engine failed. On Windows this usually means no voice is installed: add one under Settings, Time & language, Speech.',
-  'synthesis-unavailable': 'This browser has no speech voice installed, so replies stay on screen only.',
-  'language-unavailable': 'No installed voice speaks this language, so replies stay on screen only.',
-  'voice-unavailable': 'The chosen voice is not available on this machine.',
+  'not-allowed': 'De browser praat pas nadat u de pagina hebt aangeraakt. Klik één keer en vraag het opnieuw.',
+  'audio-busy': 'De geluidsuitvoer is bezet. Sluit wat er verder de speakers gebruikt en vraag het opnieuw.',
+  'synthesis-failed': 'De spraakmotor gaf een fout. Op Windows betekent dat meestal dat er geen stem is geïnstalleerd: voeg er een toe bij Instellingen, Tijd en taal, Spraak.',
+  'synthesis-unavailable': 'Deze browser heeft geen stem geïnstalleerd, dus antwoorden blijven alleen op het scherm staan.',
+  'language-unavailable': 'Geen enkele geïnstalleerde stem spreekt deze taal, dus antwoorden blijven alleen op het scherm staan.',
+  'voice-unavailable': 'De gekozen stem is niet beschikbaar op deze machine.',
 };
 
 export function reasonFor(error: string): string {
-  return REASONS[error] ?? `Speech recognition stopped: ${error}.`;
+  return REASONS[error] ?? `De spraakherkenning stopte: ${error}.`;
 }
 
 function recognitionCtor(): RecognitionCtor | null {
@@ -65,8 +65,8 @@ export function detect(): VoiceSupport {
     recognition: rec,
     synthesis: syn,
     detail: rec
-      ? 'Speech recognition API is present. Whether the microphone is actually permitted is confirmed separately.'
-      : 'This browser exposes no Web Speech recognition API. Type commands instead; nothing else is limited.',
+      ? 'De spraakherkenning is aanwezig. Of de microfoon werkelijk is toegestaan, wordt apart nagegaan.'
+      : 'Deze browser heeft geen spraakherkenning. Typ uw opdrachten; verder is er niets beperkt.',
   };
 }
 
@@ -78,23 +78,23 @@ export function detect(): VoiceSupport {
  */
 export async function confirmMicrophone(): Promise<{ usable: boolean; detail: string }> {
   if (recognitionCtor() === null) {
-    return { usable: false, detail: 'This browser exposes no Web Speech recognition API.' };
+    return { usable: false, detail: 'Deze browser heeft geen spraakherkenning.' };
   }
   if (typeof navigator.mediaDevices === 'undefined') {
-    return { usable: false, detail: 'This page has no access to media devices, so the microphone cannot be used here.' };
+    return { usable: false, detail: 'Deze pagina heeft geen toegang tot media-apparaten, dus de microfoon kan hier niet worden gebruikt.' };
   }
   try {
     const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
     if (status.state === 'denied') return { usable: false, detail: REASONS['not-allowed'] as string };
     return {
       usable: true,
-      detail: status.state === 'prompt' ? 'The browser will ask for the microphone the first time you press it.' : 'Microphone permitted.',
+      detail: status.state === 'prompt' ? 'De browser vraagt om de microfoon zodra u hem voor het eerst indrukt.' : 'Microfoon toegestaan.',
     };
   } catch {
     // Some browsers do not expose a microphone permission query at all. That is
     // not evidence either way, so the state stays unconfirmed rather than being
     // reported as working.
-    return { usable: true, detail: 'This browser will not report microphone permission in advance; pressing the button is the only way to find out.' };
+    return { usable: true, detail: 'Deze browser meldt de microfoontoestemming niet vooraf; de knop indrukken is de enige manier om het te weten.' };
   }
 }
 
@@ -125,7 +125,7 @@ export class WakeListener {
     const Ctor = recognitionCtor();
     if (!Ctor) return;
     const rec = new Ctor();
-    rec.lang = navigator.language || 'en-US';
+    rec.lang = /^nl/i.test(navigator.language) ? navigator.language : 'nl-BE';
     rec.continuous = true;
     rec.interimResults = true;
     rec.onresult = (e) => {
@@ -214,7 +214,7 @@ export class Voice {
     const Ctor = recognitionCtor();
     if (!Ctor) return;
     const rec = new Ctor();
-    rec.lang = navigator.language || 'en-US';
+    rec.lang = /^nl/i.test(navigator.language) ? navigator.language : 'nl-BE';
     rec.continuous = false;
     rec.interimResults = true;
     rec.onresult = (e) => {
@@ -330,12 +330,12 @@ export class Voice {
       await new Promise((r) => window.setTimeout(r, 60));
 
       const u = new SpeechSynthesisUtterance(spoken);
-      u.lang = 'en-GB';
+      u.lang = 'nl-BE';
       u.rate = 1.02;
       u.pitch = 0.94;
       const preferred =
-        voices.find((v) => /^en-GB/i.test(v.lang) && /male|daniel|george|arthur/i.test(v.name)) ??
-        voices.find((v) => /^en-GB/i.test(v.lang)) ??
+        voices.find((v) => /^nl-BE/i.test(v.lang)) ??
+        voices.find((v) => /^nl/i.test(v.lang)) ??
         voices.find((v) => /^en/i.test(v.lang));
       // Choosing a voice is a preference, never a precondition: if the browser
       // rejects the assignment, it still speaks in its default voice.

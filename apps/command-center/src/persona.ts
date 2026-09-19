@@ -11,7 +11,7 @@ import type { IntentName } from '../../../core/types/index.ts';
  */
 
 /** What the operator is called. */
-const ADDRESS = 'sir';
+const ADDRESS = 'meneer';
 
 /*
  * Openers rotate so the system does not answer with the same word all day.
@@ -19,9 +19,9 @@ const ADDRESS = 'sir';
  * order, and the sentence that follows carries the facts.
  */
 const ACKS: Record<string, string[]> = {
-  order: ['At once', 'Right away', 'Consider it done', 'On it'],
-  steady: ['Very good', 'Understood', 'As you wish', 'Noted'],
-  report: ['Here is where we stand', 'Current position', 'Standing report'],
+  order: ['Meteen', 'Komt in orde', 'Doe ik', 'Ik ga ermee aan de slag'],
+  steady: ['Zeer goed', 'Begrepen', 'Zoals u wilt', 'Genoteerd'],
+  report: ['De stand van zaken', 'Huidige positie', 'Zo staan we ervoor'],
 };
 
 /** A refusal or a limit is delivered straight: no opener softens a "no". */
@@ -33,7 +33,7 @@ const PLAIN: IntentName[] = ['UNKNOWN', 'SET_PERMISSION', 'AUTONOMOUS_MODE'];
  * the operator it did something it did not do, so these never get an
  * acknowledgement — they are addressed and delivered as they are.
  */
-const OBSTACLE = /^(I need|I cannot|I can't|I did not|I could not|There is no|There are no|No mission|No storefront|Nothing |Permission levels)/i;
+const OBSTACLE = /^(Ik heb|Ik kan|Er (?:is|zijn|loopt|draait|staat)(?: nog)? geen|Geen |Niets |Daar herken ik|Machtigingsniveaus)/i;
 
 /** Attaches the form of address to the first sentence instead of opening with one. */
 function addressFirstSentence(body: string): string {
@@ -60,7 +60,7 @@ export function inCharacter(intent: IntentName, speech: string): string {
 
   // A sentence that already opens with an acknowledgement gets an address, not
   // a second acknowledgement stacked in front of the first.
-  const existing = /^(Understood|Very good|Noted|Acknowledged|Right away|At once)\b[.,]?\s*/i.exec(body);
+  const existing = /^(Begrepen|Zeer goed|Genoteerd|Meteen|Komt in orde|Doe ik)\b[.,]?\s*/i.exec(body);
   if (existing) {
     const opener = (existing[1] as string).replace(/^./, (c) => c.toUpperCase());
     return `${opener}, ${ADDRESS}. ${body.slice(existing[0].length)}`.trim();

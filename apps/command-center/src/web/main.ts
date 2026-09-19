@@ -281,13 +281,26 @@ function render(s: Snapshot): void {
   workOrb.state = state;
   // At rest the operator is told plainly that nothing is running.
   $('rest-state').textContent = s.mission
-    ? `${s.mission.status.toLowerCase()} · ${s.mission.progress}%`
-    : 'all systems idle';
+    ? `${MISSION_STATE[s.mission.status] ?? s.mission.status.toLowerCase()} · ${s.mission.progress}%`
+    : 'alle systemen in rust';
   // The command center exists while there is work to show, and not otherwise.
   const busy = !!s.mission && !['COMPLETE', 'STOPPED', 'FAILED', 'IDLE'].includes(s.mission.status);
   if (busy) enterWork();
   else if (working) enterRest();
 }
+
+/** Mission status as the operator reads it, rather than as the state file spells it. */
+const MISSION_STATE: Record<string, string> = {
+  IDLE: 'in rust',
+  INTERPRETING: 'aan het lezen',
+  RESEARCHING: 'aan het onderzoeken',
+  VALIDATING: 'aan het valideren',
+  BUILDING: 'aan het bouwen',
+  PAUSED: 'gepauzeerd',
+  STOPPED: 'gestopt',
+  COMPLETE: 'afgerond',
+  FAILED: 'mislukt',
+};
 
 function coreStateFor(s: Snapshot): OrbState {
   const m = s.mission;
@@ -343,7 +356,7 @@ function renderMission(m: MissionView | null): void {
   const body = $('mission-body');
   $('mission-status').textContent = m ? m.status.toLowerCase() : 'idle';
   if (!m) {
-    body.innerHTML = '<p class="empty">No mission is running. Give JARVIS an objective in the command bar.</p>';
+    body.innerHTML = '<p class="empty">Er draait geen missie. Geef JARVIS een opdracht in de commandobalk.</p>';
     missionStart = null;
     $('s-elapsed').textContent = '—';
     return;
@@ -378,7 +391,7 @@ function renderIntel(products: CandidateView[]): void {
   });
   $('intel-count').textContent = String(products.length);
   if (!ordered.length) {
-    body.innerHTML = '<p class="empty">Discoveries appear here as JARVIS finds them, with the evidence behind each one.</p>';
+    body.innerHTML = '<p class="empty">Wat JARVIS vindt verschijnt hier, met het bewijs erbij.</p>';
     renderedCandidates.clear();
     return;
   }
@@ -619,16 +632,16 @@ const voiceSupport = detect();
 
 // The API being present is not the same as the microphone being usable, so
 // the status line stays non-committal until the browser has been asked.
-$('voice-state').textContent = voiceSupport.recognition ? 'voice: checking' : 'voice: unavailable';
+$('voice-state').textContent = voiceSupport.recognition ? 'stem: nagaan' : 'stem: niet beschikbaar';
 $('voice-state').title = voiceSupport.detail;
 void confirmMicrophone().then(({ usable, detail }) => {
-  $('voice-state').textContent = usable ? 'voice: ready' : 'voice: blocked';
+  $('voice-state').textContent = usable ? 'stem: gereed' : 'stem: geblokkeerd';
   $('voice-state').title = detail;
   if (!usable) {
     const mic = $('mic') as HTMLButtonElement;
     mic.disabled = true;
     mic.title = detail;
-    $('rest-hint').textContent = 'press any key to type';
+    $('rest-hint').textContent = 'druk op een toets om te typen';
     return;
   }
   // Listening starts only once the browser has confirmed the microphone, so the
@@ -667,7 +680,7 @@ const wake = new WakeListener(
     setPill('listening');
     restOrb.pulse(1);
     workOrb.pulse(1);
-    $('rest-hint').textContent = 'listening';
+    $('rest-hint').textContent = 'ik luister';
   },
   (command) => {
     setPill(null);
@@ -679,14 +692,14 @@ const wake = new WakeListener(
     if (view === 'rest') $('rest-hint').textContent = heard.slice(-70);
   },
   (reason) => {
-    $('voice-state').textContent = 'voice: blocked';
+    $('voice-state').textContent = 'stem: geblokkeerd';
     $('voice-state').title = reason;
     $('rest-hint').textContent = reason;
   },
 );
 
-const HINT = 'say \u201cJarvis\u201d, or press any key to type';
-$('rest-hint').textContent = wake.available ? HINT : 'press any key to type';
+const HINT = 'zeg \u201cJarvis\u201d, of druk op een toets om te typen';
+$('rest-hint').textContent = wake.available ? HINT : 'druk op een toets om te typen';
 
 voice.onSpeaking = (speaking) => {
   setPill(speaking ? 'speaking' : null);
@@ -698,7 +711,7 @@ voice.onSpeaking = (speaking) => {
 // browser reports is shown where the operator is already looking.
 voice.onProblem = (reason) => {
   $('reply').textContent = reason;
-  $('voice-state').textContent = 'voice: blocked';
+  $('voice-state').textContent = 'stem: geblokkeerd';
   $('voice-state').title = reason;
 };
 if (!voice.available) ($('mic') as HTMLButtonElement).disabled = true;
@@ -850,7 +863,7 @@ $('perm-btn').addEventListener('click', async () => {
   if (input === null) return;
   const level = Number(input.trim());
   if (!Number.isInteger(level) || level < 0 || level > 6) {
-    $('reply').textContent = 'Permission levels run from 0 to 6.';
+    $('reply').textContent = 'Machtigingsniveaus lopen van 0 tot 6.';
     return;
   }
   await fetch('/api/permission', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ level, note: 'Set from the command center.' }) });
@@ -905,7 +918,7 @@ window.addEventListener('keydown', (e) => {
     if ($('takeover').classList.contains('typing')) return;
     voice.silence();
     void fetch('/api/control', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ control: 'STOP' }) });
-    $('reply').textContent = 'Stopping. State is preserved.';
+    $('reply').textContent = 'Ik stop. De stand van zaken blijft bewaard.';
   }
 });
 

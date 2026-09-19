@@ -51,31 +51,31 @@ async function answer(utterance: string): Promise<Reply> {
   switch (reading.intent) {
     case 'STOP': {
       await orchestrator.setControl('STOP');
-      return { intent: reading.intent, speech: 'Stopping. All non-critical automation halts at the next checkpoint and state is preserved.', data: null };
+      return { intent: reading.intent, speech: 'Ik stop. Alle niet-kritieke automatisering valt stil bij het eerstvolgende controlepunt en de stand van zaken blijft bewaard.', data: null };
     }
     case 'PAUSE': {
       await orchestrator.setControl('PAUSE');
-      return { intent: reading.intent, speech: 'Paused. Nothing is lost; say continue when you want me to pick it up.', data: null };
+      return { intent: reading.intent, speech: 'Gepauzeerd. Er gaat niets verloren. Zeg het wanneer ik verder mag.', data: null };
     }
     case 'RESUME': {
       await orchestrator.setControl('RUN');
-      return { intent: reading.intent, speech: 'Resuming.', data: null };
+      return { intent: reading.intent, speech: 'Ik ga verder.', data: null };
     }
     case 'SET_PERMISSION': {
       const level = Number(reading.params['level'] ?? 0);
       if (!Number.isInteger(level) || level < 0 || level > 6) {
-        return { intent: reading.intent, speech: 'Permission levels run from 0 to 6. Tell me which one.', data: null };
+        return { intent: reading.intent, speech: 'Machtigingsniveaus lopen van 0 tot 6. Zeg welk niveau u wilt.', data: null };
       }
       const state = await permissions.grant(level as 0, 'operator (spoken)', utterance);
-      const extra = level >= 5 ? ' Spending still needs a separate explicit authorisation — I will not commit money on this alone.' : '';
-      return { intent: reading.intent, speech: `Permission level ${level}: ${permissions.LEVELS[level as 0]}.${extra}`, data: { permissions: state } };
+      const extra = level >= 5 ? ' Uitgaven hebben nog steeds een aparte, uitdrukkelijke toestemming nodig. Hier alleen leg ik geen geld mee vast.' : '';
+      return { intent: reading.intent, speech: `Machtigingsniveau ${level}: ${permissions.LEVELS[level as 0]}.${extra}`, data: { permissions: state } };
     }
     case 'SHOW_DETAIL':
-      return { intent: reading.intent, speech: 'Showing the detail.', data: null, view: 'detail' };
+      return { intent: reading.intent, speech: 'Ik toon de details.', data: null, view: 'detail' };
     case 'HIDE_DETAIL':
-      return { intent: reading.intent, speech: 'Clearing it away.', data: null, view: 'plain' };
+      return { intent: reading.intent, speech: 'Ik ruim het op.', data: null, view: 'plain' };
     case 'OPEN_INPUT':
-      return { intent: reading.intent, speech: 'Go ahead.', data: null, view: 'input' };
+      return { intent: reading.intent, speech: 'Ga uw gang.', data: null, view: 'input' };
     case 'STATUS':
       return status();
     case 'EXPLAIN':
@@ -85,7 +85,7 @@ async function answer(utterance: string): Promise<Reply> {
       const mission = await orchestrator.startMission({ utterance, interpretation: reading, finalTarget: target });
       return {
         intent: reading.intent,
-        speech: `Understood. I'll investigate current demand, trend momentum, competition, customer complaints, supplier economics and compliance, and return only candidates that pass the validation threshold. If fewer than ${target} pass, I'll return fewer and tell you why.`,
+        speech: `Begrepen. Ik onderzoek de huidige vraag, de trend, de concurrentie, klachten van klanten, de economie bij leveranciers en de regelgeving, en ik lever alleen kandidaten die de validatiedrempel halen. Halen er minder dan ${target} het, dan krijgt u er minder en zeg ik erbij waarom.`,
         data: { missionId: mission.id },
       };
     }
@@ -100,8 +100,8 @@ async function answer(utterance: string): Promise<Reply> {
     case 'RESEARCH_PRODUCT':
     case 'FIND_SUPPLIER': {
       const mission = await orchestrator.currentMission();
-      if (!mission) return { intent: reading.intent, speech: 'There is no active mission to work from. Give me a discovery objective first, or name the product.', data: null };
-      return { intent: reading.intent, speech: `Queued against the current mission: ${reading.objective}`, data: { missionId: mission.id } };
+      if (!mission) return { intent: reading.intent, speech: 'Er loopt geen missie om op voort te bouwen. Geef me eerst een zoekopdracht, of noem het product.', data: null };
+      return { intent: reading.intent, speech: `In de wachtrij gezet bij de lopende missie: ${reading.objective}`, data: { missionId: mission.id } };
     }
     case 'ANALYSE_RESULTS':
       return analyse();
@@ -109,14 +109,14 @@ async function answer(utterance: string): Promise<Reply> {
       const perms = await permissions.current();
       return {
         intent: reading.intent,
-        speech: `Autonomous mode acknowledged. I'll keep researching and building within level ${perms.level} — ${permissions.LEVELS[perms.level]}. Financial permissions stay separate and I will not raise them myself.`,
+        speech: `Autonome modus genoteerd. Ik blijf onderzoeken en bouwen binnen niveau ${perms.level}: ${permissions.LEVELS[perms.level]}. Financiële machtigingen staan daar los van en verhoog ik nooit zelf.`,
         data: { level: perms.level },
       };
     }
     default:
       return {
         intent: 'UNKNOWN',
-        speech: `I did not recognise an objective in that. I can discover products, research one in depth, find suppliers, build a brand or a storefront, prepare ads, analyse results, or stop.`,
+        speech: `Daar herken ik geen opdracht in. Ik kan producten zoeken, er één diep onderzoeken, leveranciers vinden, een merk of een winkel bouwen, advertenties voorbereiden, resultaten analyseren, of stoppen.`,
         data: null,
       };
   }
@@ -124,7 +124,7 @@ async function answer(utterance: string): Promise<Reply> {
 
 async function status(): Promise<Reply> {
   const [mission, products] = await Promise.all([orchestrator.currentMission(), orchestrator.currentProducts()]);
-  if (!mission) return { intent: 'STATUS', speech: 'No mission is running. I am ready for command.', data: null };
+  if (!mission) return { intent: 'STATUS', speech: 'Er draait geen missie. Ik wacht op uw opdracht.', data: null };
 
   const all = products.candidates;
   const rejected = all.filter((c) => c.stage === 'REJECTED');
@@ -136,13 +136,13 @@ async function status(): Promise<Reply> {
   });
 
   const lines = [
-    `Research is ${mission.progress}% complete.`,
-    `I've analysed ${all.length} candidate${all.length === 1 ? '' : 's'}.`,
-    `${rejected.length} ${rejected.length === 1 ? 'has' : 'have'} been rejected.`,
-    live.length ? `${live.length} remain under investigation.` : '',
-    `${passingEconomics.length} currently pass the economic threshold.`,
-    validated.length ? `${validated.length} passed full validation.` : '',
-    mission.activeAgents.length ? `Active now: ${mission.activeAgents.join(', ')}.` : '',
+    `Het onderzoek is ${mission.progress} procent klaar.`,
+    `Ik heb ${all.length} ${all.length === 1 ? 'kandidaat' : 'kandidaten'} onderzocht.`,
+    `${rejected.length} ${rejected.length === 1 ? 'is' : 'zijn'} afgevallen.`,
+    live.length ? `${live.length} worden nog onderzocht.` : '',
+    `${passingEconomics.length} halen op dit moment de economische drempel.`,
+    validated.length ? `${validated.length} zijn volledig gevalideerd.` : '',
+    mission.activeAgents.length ? `Nu actief: ${mission.activeAgents.join(', ')}.` : '',
   ].filter(Boolean);
 
   return { intent: 'STATUS', speech: lines.join('\n'), data: { mission, counts: { all: all.length, rejected: rejected.length, live: live.length, validated: validated.length } } };
@@ -151,23 +151,23 @@ async function status(): Promise<Reply> {
 async function explain(index?: number): Promise<Reply> {
   const products = await orchestrator.currentProducts();
   const all = products.candidates;
-  if (!all.length) return { intent: 'EXPLAIN', speech: 'There are no candidates to explain yet.', data: null };
+  if (!all.length) return { intent: 'EXPLAIN', speech: 'Er zijn nog geen kandidaten om uit te leggen.', data: null };
 
   const target: ProductCandidate | undefined =
     index !== undefined
       ? all[index - 1]
       : [...all].filter((c) => c.rejection).sort((a, b) => (b.rejection?.at ?? '').localeCompare(a.rejection?.at ?? ''))[0];
 
-  if (!target) return { intent: 'EXPLAIN', speech: `I have no candidate at position ${index}.`, data: null };
+  if (!target) return { intent: 'EXPLAIN', speech: `Ik heb geen kandidaat op plaats ${index}.`, data: null };
 
   if (target.rejection) {
     const ev = target.evidence.filter((e) => e.source).slice(0, 4);
     return {
       intent: 'EXPLAIN',
       speech: [
-        `${target.name} was rejected at the ${target.rejection.stage} gate by the ${target.rejection.agent} agent.`,
-        `Reason: ${target.rejection.reason}`,
-        ev.length ? `Evidence behind that: ${ev.map((e) => `${e.claim} (${e.source?.url})`).join(' ')}` : 'No supporting sources were retrieved, which is itself part of the reason.',
+        `${target.name} is afgevallen bij de stap ${target.rejection.stage}, door de ${target.rejection.agent}-agent.`,
+        `Reden: ${target.rejection.reason}`,
+        ev.length ? `Het bewijs daarachter: ${ev.map((e) => `${e.claim} (${e.source?.url})`).join(' ')}` : 'Er zijn geen onderbouwende bronnen gevonden, en dat is zelf een deel van de reden.',
       ].join('\n'),
       data: { candidate: target },
     };
@@ -177,8 +177,8 @@ async function explain(index?: number): Promise<Reply> {
   return {
     intent: 'EXPLAIN',
     speech: [
-      `${target.name} is still in the pipeline at stage ${target.stage.toLowerCase()}.`,
-      score ? `It scores ${score.total ?? '—'} at ${Math.round(score.coverage * 100)}% evidence coverage, ${score.confidence.toLowerCase()} confidence.` : 'It has not been scored yet.',
+      `${target.name} zit nog in de pijplijn, bij stap ${target.stage.toLowerCase()}.`,
+      score ? `Hij scoort ${score.total ?? '—'} bij ${Math.round(score.coverage * 100)} procent bewijsdekking, met ${score.confidence.toLowerCase()} betrouwbaarheid.` : 'Hij is nog niet gescoord.',
       score ? score.components.filter((c) => c.raw !== null).map((c) => `${c.label}: ${c.raw} — ${c.rationale}`).join('\n') : '',
     ].filter(Boolean).join('\n'),
     data: { candidate: target },
@@ -192,7 +192,7 @@ async function analyse(): Promise<Reply> {
   const lessons = await learningAgent.run({ report, productName: 'n/a' }, ctx);
   return {
     intent: 'ANALYSE_RESULTS',
-    speech: report.hasData ? report.diagnosis.join(' ') : 'No campaign data is connected and none has been supplied, so there is nothing to analyse. Connect an ads account or give me the rows and I will report contribution profit.',
+    speech: report.hasData ? report.diagnosis.join(' ') : 'Er is geen campagnedata aangesloten en er is niets aangeleverd, dus er valt niets te analyseren. Sluit een advertentieaccount aan of geef me de cijfers, dan reken ik de dekkingsbijdrage voor u uit.',
     data: { report, lessons },
   };
 }
@@ -203,7 +203,7 @@ async function buildStep(step: 'brand' | 'store' | 'ads' | 'cro', subject?: stri
   const pool = products.candidates.length ? products.candidates : await orchestrator.library();
   const candidate = pick(pool, subject);
   if (!candidate) {
-    return { intent: step.toUpperCase(), speech: 'I need a validated candidate to build from. Run a discovery mission first, or name the product.', data: null };
+    return { intent: step.toUpperCase(), speech: 'Ik heb een gevalideerde kandidaat nodig om op te bouwen. Laat me eerst zoeken, of noem het product.', data: null };
   }
   const mission = await orchestrator.currentMission();
   const ctx = makeContext({ mission: (mission ?? fakeMissionShell()) as never, research, agentId: step, readControl: async () => (await orchestrator.currentMission())?.control ?? 'RUN' });
@@ -212,7 +212,7 @@ async function buildStep(step: 'brand' | 'store' | 'ads' | 'cro', subject?: stri
     if (step === 'brand') {
       await brandAgent.run(candidate, ctx);
       await persist(pool, candidate);
-      return { intent: 'BUILD_BRAND', speech: `Brand built for ${candidate.name}: ${candidate.brand?.name} — ${candidate.brand?.positioning}`, data: { brand: candidate.brand } };
+      return { intent: 'BUILD_BRAND', speech: `Merk gebouwd voor ${candidate.name}: ${candidate.brand?.name} — ${candidate.brand?.positioning}`, data: { brand: candidate.brand } };
     }
     if (step === 'store') {
       if (!candidate.brand) await brandAgent.run(candidate, ctx);
@@ -223,7 +223,7 @@ async function buildStep(step: 'brand' | 'store' | 'ads' | 'cro', subject?: stri
       const site = `/site/${candidate.id}/index.html`;
       return {
         intent: 'BUILD_STORE',
-        speech: `Storefront built for ${candidate.name}: ${storefront.pages.length} pages and ${offers.length} offer tier${offers.length === 1 ? '' : 's'} priced off the real contribution, in ${candidate.brand?.name ?? 'the brand'}'s own colours and type. It is open in your browser. ${flagged} page${flagged === 1 ? '' : 's'} are marked as not ready to publish, and nothing has been pushed to Shopify — that adapter is not connected.`,
+        speech: `Winkel gebouwd voor ${candidate.name}: ${storefront.pages.length} pagina's en ${offers.length} ${offers.length === 1 ? 'aanbieding' : 'aanbiedingen'}, geprijsd op de echte dekkingsbijdrage, in de eigen kleuren en letters van ${candidate.brand?.name ?? 'het merk'}. Hij staat open in uw browser. ${flagged} ${flagged === 1 ? 'pagina is' : "pagina's zijn"} gemarkeerd als nog niet klaar om te publiceren, en er is niets naar Shopify gestuurd: die koppeling staat niet aan.`,
         data: { storefront, offers, site },
         site,
       };
@@ -231,10 +231,10 @@ async function buildStep(step: 'brand' | 'store' | 'ads' | 'cro', subject?: stri
     if (step === 'cro') {
       const saved = await store.read<Record<string, { storefront?: unknown }>>('brand', {});
       const sf = saved[candidate.id]?.storefront;
-      if (!sf) return { intent: 'OPTIMISE_STORE', speech: 'There is no storefront to optimise yet. Ask me to build the store first.', data: null };
+      if (!sf) return { intent: 'OPTIMISE_STORE', speech: 'Er is nog geen winkel om te optimaliseren. Vraag me eerst de winkel te bouwen.', data: null };
       const findings = await croAgent.run({ candidate, storefront: sf as never }, ctx);
       const high = findings.filter((f) => f.severity === 'HIGH');
-      return { intent: 'OPTIMISE_STORE', speech: `${findings.length} conversion finding${findings.length === 1 ? '' : 's'}, ${high.length} high severity. ${high[0]?.finding ?? ''}`, data: { findings } };
+      return { intent: 'OPTIMISE_STORE', speech: `${findings.length} ${findings.length === 1 ? 'bevinding' : 'bevindingen'} over conversie, waarvan ${high.length} met hoge urgentie. ${high[0]?.finding ?? ''}`, data: { findings } };
     }
     const creatives = await creativeAgent.run({ candidate, total: 10 }, ctx);
     const specs = await videoAgent.run(creatives, ctx);
@@ -243,7 +243,7 @@ async function buildStep(step: 'brand' | 'store' | 'ads' | 'cro', subject?: stri
     await store.update<Record<string, unknown>>('campaigns', {}, (s) => ({ ...s, [candidate.id]: plan }));
     return {
       intent: 'PREPARE_ADS',
-      speech: `Prepared ${creatives.length} creative concepts and a Sales campaign optimised for Purchase, across ${plan.adSets.length} ad sets. Nothing is live, no budget is committed and no generation credits were spent.`,
+      speech: `${creatives.length} creatieve concepten klaargezet en een Sales-campagne geoptimaliseerd op Purchase, verdeeld over ${plan.adSets.length} advertentiesets. Er staat niets live, er is geen budget vastgelegd en er zijn geen credits uitgegeven.`,
       data: { plan, creatives: creatives.length, specs: specs.length },
     };
   } catch (err) {
