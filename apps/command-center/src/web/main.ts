@@ -616,6 +616,7 @@ setInterval(() => {
 /* ------------------------------------------------------------- command */
 
 const voiceSupport = detect();
+
 // The API being present is not the same as the microphone being usable, so
 // the status line stays non-committal until the browser has been asked.
 $('voice-state').textContent = voiceSupport.recognition ? 'voice: checking' : 'voice: unavailable';
@@ -646,6 +647,16 @@ const voice = new Voice(
     setPill(listening ? 'listening' : null);
   },
 );
+
+/*
+ * Browsers refuse to speak until the page has been interacted with, and they
+ * refuse without saying so. Spend the very first gesture — whatever it is —
+ * on unlocking the voice, so the first reply JARVIS gives is actually heard.
+ */
+for (const event of ['pointerdown', 'keydown'] as const) {
+  window.addEventListener(event, () => voice.prime(), { once: true, capture: true });
+}
+
 /*
  * The system listens for its own name from the moment it is allowed to. Saying
  * "Jarvis" wakes it; whatever follows in the same breath is the command. Until

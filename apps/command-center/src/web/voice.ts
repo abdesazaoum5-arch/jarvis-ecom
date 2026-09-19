@@ -39,6 +39,16 @@ const REASONS: Record<string, string> = {
   'audio-capture': 'No microphone was found on this device.',
 };
 
+/** Why the browser refused to speak, in words the operator can act on. */
+const SPEECH_REASONS: Record<string, string> = {
+  'not-allowed': 'The browser will not speak until you interact with the page. Click once anywhere and ask again.',
+  'audio-busy': 'Audio output is busy. Close whatever else is using the speakers and ask again.',
+  'synthesis-failed': 'The speech engine failed. On Windows this usually means no voice is installed: add one under Settings, Time & language, Speech.',
+  'synthesis-unavailable': 'This browser has no speech voice installed, so replies stay on screen only.',
+  'language-unavailable': 'No installed voice speaks this language, so replies stay on screen only.',
+  'voice-unavailable': 'The chosen voice is not available on this machine.',
+};
+
 export function reasonFor(error: string): string {
   return REASONS[error] ?? `Speech recognition stopped: ${error}.`;
 }
@@ -257,22 +267,112 @@ export class Voice {
   /** Called with true while speech is actually being spoken. */
   onSpeaking: ((speaking: boolean) => void) | null = null;
 
-  /** Speaks a reply back. Kept short and interruptible. */
-  say(text: string): void {
-    if (typeof window.speechSynthesis === 'undefined') return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.slice(0, 320));
-    u.rate = 1.02;
-    u.pitch = 0.94;
-    // The interface reports speaking only while the engine reports it, so the
-    // indicator follows the voice rather than predicting it.
-    u.onstart = () => this.onSpeaking?.(true);
-    u.onend = () => this.onSpeaking?.(false);
-    u.onerror = () => this.onSpeaking?.(false);
+  #primed = false;
+  #keepAlive: number | null = null;
+
+  /**
+   * Browsers load the voice list asynchronously and hand back an empty array
+   * until it is ready. Speaking in that window is silently dropped — the call
+   * succeeds and nothing is heard — so the first utterance waits for the list.
+   */
+  async #voices(): Promise<SpeechSynthesisVoice[]> {
+    const now = window.speechSynthesis.getVoices();
+    if (now.length) return now;
+    return new Promise((resolve) => {
+      const done = (): void => {
+        window.clearTimeout(timer);
+        window.speechSynthesis.onvoiceschanged = null;
+        resolve(window.speechSynthesis.getVoices());
+      };
+      // Give up rather than hang: an empty list still speaks with the default.
+      const timer = window.setTimeout(done, 1500);
+      window.speechSynthesis.onvoiceschanged = done;
+    });
+  }
+
+  /**
+   * Browsers refuse to speak until the page has been interacted with, and they
+   * refuse silently. Called on the first real gesture, this spends that gesture
+   * on an inaudible utterance so the first thing JARVIS actually says is heard.
+   */
+  prime(): void {
+    if (this.#primed || typeof window.speechSynthesis === 'undefined') return;
+    this.#primed = true;
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
     window.speechSynthesis.speak(u);
   }
 
+  /** Speaks a reply back. Kept short and interruptible. */
+  say(text: string): void {
+    if (typeof window.speechSynthesis === 'undefined') return;
+    const spoken = text.replace(/\s+/g, ' ').trim().slice(0, 320);
+    if (!spoken) return;
+
+    void (async () => {
+      try {
+        await this.#speak(spoken);
+      } catch (err) {
+        // An unhandled rejection here is silence with no explanation, which is
+        // the failure this whole path exists to avoid.
+        this.onProblem?.(`The browser could not speak the reply: ${(err as Error).message}`);
+        this.onSpeaking?.(false);
+      }
+    })();
+  }
+
+  async #speak(spoken: string): Promise<void> {
+    {
+      const voices = await this.#voices();
+      // cancel() then speak() in the same tick leaves Chrome's queue wedged and
+      // nothing is heard; the gap between them is what makes this reliable.
+      window.speechSynthesis.cancel();
+      await new Promise((r) => window.setTimeout(r, 60));
+
+      const u = new SpeechSynthesisUtterance(spoken);
+      u.lang = 'en-GB';
+      u.rate = 1.02;
+      u.pitch = 0.94;
+      const preferred =
+        voices.find((v) => /^en-GB/i.test(v.lang) && /male|daniel|george|arthur/i.test(v.name)) ??
+        voices.find((v) => /^en-GB/i.test(v.lang)) ??
+        voices.find((v) => /^en/i.test(v.lang));
+      // Choosing a voice is a preference, never a precondition: if the browser
+      // rejects the assignment, it still speaks in its default voice.
+      try {
+        if (preferred) u.voice = preferred;
+      } catch {
+        /* keep the default voice */
+      }
+
+      // The interface reports speaking only while the engine reports it, so the
+      // indicator follows the voice rather than predicting it.
+      u.onstart = () => {
+        this.onSpeaking?.(true);
+        // Chrome stops mid-sentence after about fifteen seconds unless nudged.
+        this.#keepAlive = window.setInterval(() => window.speechSynthesis.resume(), 5000);
+      };
+      const finish = (): void => {
+        if (this.#keepAlive !== null) window.clearInterval(this.#keepAlive);
+        this.#keepAlive = null;
+        this.onSpeaking?.(false);
+      };
+      u.onend = finish;
+      u.onerror = (e) => {
+        finish();
+        // Failing silently is what made this hard to diagnose; say why.
+        const reason = (e as SpeechSynthesisErrorEvent).error ?? 'unknown';
+        if (reason !== 'interrupted' && reason !== 'canceled') {
+          this.onProblem?.(SPEECH_REASONS[reason] ?? `The browser could not speak the reply: ${reason}.`);
+        }
+      };
+      window.speechSynthesis.speak(u);
+    }
+  }
+
   silence(): void {
+    if (this.#keepAlive !== null) window.clearInterval(this.#keepAlive);
+    this.#keepAlive = null;
     if (typeof window.speechSynthesis !== 'undefined') window.speechSynthesis.cancel();
     this.onSpeaking?.(false);
   }
