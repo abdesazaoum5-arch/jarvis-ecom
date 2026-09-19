@@ -1,5 +1,6 @@
-import type { ProductCandidate } from '../../../core/types/index.ts';
+import type { IntentName, ProductCandidate } from '../../../core/types/index.ts';
 import { interpret } from '../../../core/nl/intent.ts';
+import { inCharacter } from './persona.ts';
 import * as orchestrator from '../../../core/orchestrator/index.ts';
 import * as permissions from '../../../core/permissions/index.ts';
 import * as store from '../../../core/state/store.ts';
@@ -37,6 +38,13 @@ export interface Reply {
 }
 
 export async function respond(utterance: string): Promise<Reply> {
+  const reply = await answer(utterance);
+  // Register is applied in one place, to the finished sentence, so no branch
+  // can drift out of character and none can alter what the sentence claims.
+  return { ...reply, speech: inCharacter(reply.intent as IntentName, reply.speech) };
+}
+
+async function answer(utterance: string): Promise<Reply> {
   const reading = interpret(utterance);
   emit({ kind: 'system', message: `Command received: "${utterance}"`, data: { intent: reading.intent } });
 
