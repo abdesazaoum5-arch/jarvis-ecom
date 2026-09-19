@@ -2,7 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import { URL } from 'node:url';
+import { URL, fileURLToPath } from 'node:url';
 import type { JarvisEvent, PermissionLevel } from '../../../core/types/index.ts';
 import { PATHS } from '../../../core/util/paths.ts';
 import { emit, recent, subscribe, closeLog } from '../../../core/events/bus.ts';
@@ -224,7 +224,9 @@ export async function stop(): Promise<void> {
   await closeLog();
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
+// fileURLToPath, not .pathname: on Windows a file: URL's pathname is `/C:/…`,
+// which never matches a real path, and the server would silently never start.
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 if (isMain) {
   await start();
   const shutdown = async () => {
