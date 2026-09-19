@@ -94,6 +94,8 @@ const restOrb = new Orb($<HTMLCanvasElement>('rest-canvas'), { still: prefersSti
  * system are distinguishable at a glance.
  */
 const core = new Orb($<HTMLCanvasElement>('core-canvas'), { still: prefersStill, form: 'ringed' });
+/** The presence in the working view: the same system, seen while it drives. */
+const workOrb = new Orb($<HTMLCanvasElement>('takeover-orb'), { still: prefersStill, form: 'ringed' });
 const field = new NodeField($<HTMLCanvasElement>('node-canvas'), prefersStill);
 
 let seenEvents = new Set<string>();
@@ -117,7 +119,9 @@ function finishBoot(): void {
   $('rest').classList.add('live');
   restOrb.start();
   core.start();
+  workOrb.start();
   field.start();
+  setView('rest');
   $('rest-utterance').focus();
   tickClock();
   void refresh();
@@ -126,29 +130,83 @@ function finishBoot(): void {
 
 /* --------------------------------------------------------------- rest */
 
-/** True while the command center is up; false when JARVIS is at rest. */
+/**
+ * Three views, and only ever one of them.
+ *
+ * `rest`  — presence alone: the orb, the time, and one line saying nothing is
+ *           running. This is where JARVIS lives when it is not working.
+ * `takeover` — the machine's own screen, full bleed, with one line naming what
+ *           it is doing. This is what "watch it work" means.
+ * `detail` — the panels, on request only.
+ *
+ * The operator asked for a system that is present rather than a screen full of
+ * text, so nothing appears unless it is either the work itself or something
+ * they asked to see.
+ */
+type View = 'rest' | 'takeover' | 'detail';
+
+let view: View = 'rest';
+// Stamped up front so the view is never unset while the page is being read.
+root.dataset['view'] = view;
+
+function setView(next: View): void {
+  if (view === next) return;
+  view = next;
+  root.dataset['view'] = next;
+
+  $('rest').classList.toggle('gone', next !== 'rest');
+  // Focus follows the view. Left behind in a hidden field, every keystroke goes
+  // somewhere the operator cannot see.
+  const focused = document.activeElement as HTMLElement | null;
+  if (focused && focused !== document.body && next !== 'detail') focused.blur();
+  // The presence is wherever the operator is looking.
+  restOrb.docked = next !== 'rest';
+  workOrb.docked = false;
+  core.docked = false;
+
+  if (next === 'detail') {
+    $('shell').classList.add('live', 'emerging');
+    window.setTimeout(() => $('shell').classList.remove('emerging'), 950);
+    $('utterance').focus();
+  } else {
+    closeTyping();
+  }
+}
+
+/** True while there is work to watch; false when JARVIS is at rest. */
 let working = false;
 
 function enterWork(): void {
-  if (working) return;
   working = true;
-  $('rest').classList.add('gone');
-  $('shell').classList.add('live', 'emerging');
-  // The presence hands over to the instrument: one moves aside, the other takes
-  // centre stage, so it reads as the same system changing posture.
-  restOrb.docked = true;
-  core.docked = false;
-  window.setTimeout(() => $('shell').classList.remove('emerging'), 950);
-  $('utterance').focus();
+  $('takeover').classList.add('working');
+  // A detail view the operator opened themselves is not taken away from them.
+  if (view !== 'detail') setView('takeover');
+}
+
+/* ------------------------------------------------------------- typing */
+
+/*
+ * The typing field is summoned, not permanent. Voice can ask for it, but so can
+ * any key and any tap: if speech is unavailable — a blocked microphone, no
+ * speech service — the operator must still be able to reach the system.
+ */
+function openTyping(): void {
+  $('takeover').classList.add('typing');
+  ($('takeover-utterance') as HTMLInputElement).focus();
+}
+
+function closeTyping(): void {
+  const field = $('takeover-utterance') as HTMLInputElement;
+  if (field.value.trim().length > 0) return;
+  $('takeover').classList.remove('typing');
 }
 
 /** Collapses back to presence once there is nothing left to show. */
 function enterRest(): void {
-  if (!working) return;
   working = false;
+  $('takeover').classList.remove('working');
   $('shell').classList.remove('live');
-  $('rest').classList.remove('gone');
-  restOrb.docked = false;
+  setView('rest');
   $('rest-utterance').focus();
 }
 
@@ -220,9 +278,15 @@ function render(s: Snapshot): void {
   const state = coreStateFor(s);
   core.state = state;
   restOrb.state = state;
+  workOrb.state = state;
+  // At rest the operator is told plainly that nothing is running.
+  $('rest-state').textContent = s.mission
+    ? `${s.mission.status.toLowerCase()} · ${s.mission.progress}%`
+    : 'all systems idle';
   // The command center exists while there is work to show, and not otherwise.
   const busy = !!s.mission && !['COMPLETE', 'STOPPED', 'FAILED', 'IDLE'].includes(s.mission.status);
-  if (busy || s.products.length > 0) enterWork();
+  if (busy) enterWork();
+  else if (working) enterRest();
 }
 
 function coreStateFor(s: Snapshot): OrbState {
@@ -482,6 +546,7 @@ function pushEvent(e: EventView): void {
   const magnitude = e.kind === 'discovery' ? 1 : e.kind === 'rejection' ? 0.75 : 0.42;
   core.pulse(magnitude);
   restOrb.pulse(magnitude);
+  workOrb.pulse(magnitude);
 
   const row = document.createElement('div');
   row.className = `ev ${e.level === 'warn' ? 'warn' : e.level === 'error' ? 'error' : e.kind} enter`;
@@ -495,12 +560,14 @@ function pushEvent(e: EventView): void {
   if (e.target?.url || e.target?.action) {
     $('core-action').textContent = e.message;
     $('core-target').textContent = e.target.url ?? e.target.site ?? '';
+    setTakeoverLine(e.message, e.target.url ?? e.target.site ?? '');
     // Anything the browser agent actually captured becomes the backdrop, so the
     // operator sees the page JARVIS is on rather than a stock graphic.
     const shot = typeof e.data?.['screenshot'] === 'string' ? (e.data['screenshot'] as string) : null;
     if (shot) showVision(shot);
   } else if (e.kind === 'mission' || e.kind === 'agent') {
     $('core-action').textContent = e.message;
+    setTakeoverLine(e.message, '');
   }
   $('core-state').textContent = core.state.toLowerCase();
   paintPillLabel();
@@ -508,13 +575,32 @@ function pushEvent(e: EventView): void {
   if (['mission', 'discovery', 'rejection', 'permission', 'adapter', 'evidence', 'economics'].includes(e.kind)) scheduleRefresh();
 }
 
+/** One line: what JARVIS is doing, and where. Nothing else competes with it. */
+function setTakeoverLine(action: string, target: string): void {
+  $('takeover-action').textContent = action;
+  $('takeover-target').textContent = target;
+}
+
+/**
+ * A screenshot the browser agent actually captured becomes the working view.
+ * Until one exists the frame stays empty and says so, because an interface that
+ * shows a stock graphic where the machine's screen should be is claiming to be
+ * driving something it is not.
+ */
 function showVision(path: string): void {
   for (const id of ['vision', 'rest-vision']) {
     const el = $(id);
     el.style.backgroundImage = `url("${path}")`;
     el.classList.add('on');
   }
+  const view = $('takeover-view');
+  view.style.backgroundImage = `url("${path}")`;
+  view.classList.add('on');
+  $('takeover').classList.add('has-view');
+  $('takeover').classList.remove('no-view');
 }
+// Until a capture arrives there is nothing to show, and the view says so.
+$('takeover').classList.add('no-view');
 
 function time(iso: string): string {
   const d = new Date(iso);
@@ -565,10 +651,21 @@ voice.onProblem = (reason) => {
 };
 if (!voice.available) ($('mic') as HTMLButtonElement).disabled = true;
 
+/** Shows what JARVIS said, then lets it fade rather than leaving text sitting. */
+let sayTimer = 0;
+function showSpoken(text: string): void {
+  const el = $('takeover-reply');
+  el.textContent = text;
+  el.classList.add('on');
+  window.clearTimeout(sayTimer);
+  sayTimer = window.setTimeout(() => el.classList.remove('on'), Math.max(4000, text.length * 70));
+}
+
 async function send(utterance: string): Promise<void> {
   const text = utterance.trim();
   if (!text) return;
-  ($('utterance') as HTMLInputElement).value = '';
+  for (const id of ['utterance', 'takeover-utterance', 'rest-utterance']) ($(id) as HTMLInputElement).value = '';
+  $('takeover').classList.remove('typing');
   $('reply').textContent = '…';
   try {
     const res = await fetch('/api/command', {
@@ -576,14 +673,59 @@ async function send(utterance: string): Promise<void> {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ utterance: text }),
     });
-    const reply = (await res.json()) as { speech: string };
+    const reply = (await res.json()) as { speech: string; view?: 'detail' | 'plain' | 'input' };
     $('reply').textContent = reply.speech;
+    showSpoken(reply.speech);
+    // What the operator asked to see, they see.
+    if (reply.view === 'detail') setView('detail');
+    else if (reply.view === 'plain') setView(working ? 'takeover' : 'rest');
+    else if (reply.view === 'input') {
+      if (view === 'rest') $('rest-utterance').focus();
+      else openTyping();
+    }
     if (voiceSupport.synthesis && voice.available) voice.say(reply.speech);
     scheduleRefresh();
   } catch (err) {
-    $('reply').textContent = `Command failed: ${(err as Error).message}`;
+    const message = `Command failed: ${(err as Error).message}`;
+    $('reply').textContent = message;
+    showSpoken(message);
   }
 }
+
+/*
+ * Reaching the system must never depend on the microphone. In the working view
+ * any typed character, or a tap, brings the field up — the same thing saying
+ * "Jarvis, let me type" does.
+ */
+const takeoverInput = $('takeover-utterance') as HTMLInputElement;
+takeoverInput.addEventListener('keydown', (e) => {
+  const key = e as KeyboardEvent;
+  if (key.key === 'Enter' && takeoverInput.value.trim()) void send(takeoverInput.value);
+  if (key.key === 'Escape') {
+    // Dismissing the keyboard must not halt the work: escape from the field is
+    // a retreat from typing, not an interrupt.
+    key.stopPropagation();
+    takeoverInput.value = '';
+    $('takeover').classList.remove('typing');
+    takeoverInput.blur();
+  }
+});
+takeoverInput.addEventListener('blur', closeTyping);
+$('takeover').addEventListener('click', (e) => {
+  if ((e.target as HTMLElement).closest('#takeover-input-wrap')) return;
+  openTyping();
+});
+window.addEventListener('keydown', (e) => {
+  const key = e as KeyboardEvent;
+  if (view !== 'takeover') return;
+  if (key.metaKey || key.ctrlKey || key.altKey) return;
+  const target = key.target as HTMLElement | null;
+  if (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
+  if (key.key.length !== 1 && key.key !== '/') return;
+  openTyping();
+  if (key.key !== '/') takeoverInput.value = key.key;
+  key.preventDefault();
+});
 
 const restInput = $('rest-utterance') as HTMLInputElement;
 restInput.addEventListener('input', () => {
@@ -672,9 +814,13 @@ $('t-shutdown').addEventListener('click', () => {
 window.addEventListener('keydown', (e) => {
   if (e.key === '/' && document.activeElement !== $('utterance') && document.activeElement !== restInput) {
     e.preventDefault();
-    (working ? $('utterance') : restInput).focus();
+    if (view === 'takeover') openTyping();
+    else (view === 'detail' ? $('utterance') : restInput).focus();
   }
   if (e.key === 'Escape') {
+    // The typing field owns escape while it is open; only otherwise does escape
+    // mean interrupt.
+    if ($('takeover').classList.contains('typing')) return;
     voice.silence();
     void fetch('/api/control', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ control: 'STOP' }) });
     $('reply').textContent = 'Stopping. State is preserved.';

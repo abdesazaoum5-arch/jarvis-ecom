@@ -159,6 +159,10 @@ export type IntentName =
   | 'RESUME'
   | 'AUTONOMOUS_MODE'
   | 'SET_PERMISSION'
+  /* View intents: they change what the operator is shown, not what the system does. */
+  | 'SHOW_DETAIL'
+  | 'HIDE_DETAIL'
+  | 'OPEN_INPUT'
   | 'UNKNOWN';
 
 /* ------------------------------------------------------------------ */

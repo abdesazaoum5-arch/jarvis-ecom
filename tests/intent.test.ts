@@ -53,3 +53,22 @@ test('an unrecognised utterance says so rather than guessing an action', () => {
 test('a niche change is a discovery mission', () => {
   assert.equal(interpret('Jarvis, find a completely different niche').intent, 'DISCOVER_PRODUCTS');
 });
+
+test('the view intents do not collide with each other or with the work', () => {
+  // "verberg de details" contains "details": hiding must win over showing.
+  assert.equal(interpret('jarvis verberg de details').intent, 'HIDE_DETAIL');
+  assert.equal(interpret('hide the panels').intent, 'HIDE_DETAIL');
+  assert.equal(interpret('jarvis toon de details').intent, 'SHOW_DETAIL');
+  assert.equal(interpret('show me everything').intent, 'SHOW_DETAIL');
+
+  // Asking to type is a request for the keyboard, never an instruction to work.
+  assert.equal(interpret('jarvis laat me iets typen').intent, 'OPEN_INPUT');
+  assert.equal(interpret('jarvis let me type').intent, 'OPEN_INPUT');
+
+  // And none of them may swallow a real mission.
+  assert.equal(
+    interpret('Jarvis, find me 3 products with strong potential').intent,
+    'DISCOVER_PRODUCTS',
+  );
+  assert.equal(interpret('jarvis stop').intent, 'STOP');
+});

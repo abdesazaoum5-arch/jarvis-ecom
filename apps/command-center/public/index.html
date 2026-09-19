@@ -23,11 +23,32 @@
   <div id="rest-readout">
     <div id="rest-clock">--:--</div>
     <div id="rest-date"></div>
+    <div id="rest-state">all systems idle</div>
   </div>
-  <div id="rest-hint">press / or speak</div>
+  <div id="rest-hint">press any key to type, or speak</div>
   <div id="rest-input-wrap">
     <label class="sr" for="rest-utterance">Speak to JARVIS</label>
     <input id="rest-utterance" type="text" autocomplete="off" spellcheck="false" placeholder="Jarvis…" />
+  </div>
+</div>
+
+<!--
+  Takeover: what the operator sees while JARVIS is working. The machine's own
+  view fills the screen and one line says what it is doing. No panels, because
+  watching the work is the point; the detail is there on request.
+-->
+<div id="takeover" aria-label="JARVIS at work">
+  <div id="takeover-view" aria-hidden="true"></div>
+  <canvas id="takeover-orb" aria-hidden="true"></canvas>
+  <div id="takeover-line">
+    <div id="takeover-action">Standing by.</div>
+    <div id="takeover-target"></div>
+  </div>
+  <div id="takeover-reply" aria-live="polite"></div>
+  <div id="takeover-nothing">No screen to show. JARVIS is working without a browser view.</div>
+  <div id="takeover-input-wrap">
+    <label class="sr" for="takeover-utterance">Speak to JARVIS</label>
+    <input id="takeover-utterance" type="text" autocomplete="off" spellcheck="false" placeholder="Jarvis…" />
   </div>
 </div>
 

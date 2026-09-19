@@ -719,3 +719,171 @@ button, input, select { font: inherit; color: inherit; }
 @media (max-width: 1180px) {
   #left-col, #right-col { grid-template-rows: auto auto; }
 }
+
+/* ---------------------------------------------------------- takeover ---- */
+/*
+ * The working view. The operator asked to see that JARVIS is present and that
+ * it is driving the machine, not to read a wall of panels — so this layer
+ * carries the machine's own screen and one line of what it is doing, and
+ * nothing else. The detail panels are still there, on request.
+ *
+ * Views are selected on the root element rather than by toggling classes all
+ * over the tree, so exactly one of rest / takeover / detail can ever be up.
+ */
+#takeover {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #04070a;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 700ms ease;
+}
+:root[data-view='takeover'] #takeover { opacity: 1; pointer-events: auto; }
+:root[data-view='rest'] #shell,
+:root[data-view='takeover'] #shell { opacity: 0 !important; pointer-events: none; }
+:root[data-view='takeover'] #rest,
+:root[data-view='detail'] #rest { opacity: 0; pointer-events: none; }
+
+/* The machine's screen, shown as it was captured. */
+#takeover-view {
+  position: absolute;
+  inset: 0;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 600ms ease;
+}
+#takeover-view.on { opacity: 0.92; }
+/* A vignette so the screen sits in the field rather than being pasted on it. */
+#takeover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 42%, rgba(4, 7, 10, 0.82) 100%);
+}
+
+/* The presence, small and to one side while the machine's screen has the floor. */
+#takeover-orb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(52vw, 46vh);
+  height: min(52vw, 46vh);
+  transform: translate(-50%, -50%);
+  transition: width 700ms ease, height 700ms ease, left 700ms ease, top 700ms ease, transform 700ms ease;
+}
+/* Once there is a screen to look at, the presence steps aside for it. */
+#takeover.has-view #takeover-orb {
+  left: auto;
+  right: 26px;
+  top: auto;
+  bottom: 96px;
+  width: 120px;
+  height: 120px;
+  transform: none;
+}
+
+#takeover-line {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+  padding: 0 clamp(16px, 6vw, 90px);
+  text-align: center;
+}
+#takeover-action {
+  font-size: clamp(15px, 2vw, 21px);
+  font-weight: 300;
+  line-height: 1.45;
+  color: #eef6ff;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+#takeover-target {
+  margin-top: 9px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: rgba(238, 246, 255, 0.3);
+  overflow-wrap: anywhere;
+}
+/* Said plainly rather than left blank: an empty frame reads as a fault. */
+#takeover-nothing {
+  position: absolute;
+  left: 50%;
+  top: calc(26px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+#takeover.no-view.working #takeover-nothing { opacity: 1; }
+
+/*
+ * The typing field is not standing there waiting. It arrives when asked for —
+ * by voice, by a keystroke, or by a tap — and leaves again when it is empty.
+ */
+#takeover-input-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 14px);
+  z-index: 3;
+  width: min(620px, 86vw);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 320ms ease, transform 320ms ease;
+}
+#takeover.typing #takeover-input-wrap { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+#takeover.typing #takeover-line { opacity: 0; transition: opacity 240ms ease; }
+#takeover-utterance {
+  width: 100%;
+  padding: 13px 18px;
+  background: rgba(8, 14, 20, 0.86);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  text-align: center;
+  outline: none;
+}
+#takeover-utterance:focus { border-color: var(--edge-strong); }
+#takeover-utterance::placeholder { color: var(--text-3); }
+
+/* What JARVIS said back, above the line, for as long as it is worth reading. */
+#takeover-reply {
+  position: absolute;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 3;
+  width: min(680px, 88vw);
+  padding: 0 4px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+#takeover-reply.on { opacity: 1; }
+
+/* The one line at rest that says nothing is running. */
+#rest-state {
+  margin-top: 18px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(238, 246, 255, 0.26);
+  pointer-events: none;
+}

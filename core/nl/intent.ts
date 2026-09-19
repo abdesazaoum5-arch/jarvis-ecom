@@ -80,6 +80,43 @@ const RULES: Rule[] = [
     objective: (m) => `Set the permission level to ${m[1]}.`,
     params: (m) => ({ level: Number(m[1] ?? 0) }),
   },
+  /*
+   * View intents come before the work intents so that "Jarvis, let me type"
+   * opens the keyboard rather than being read as an instruction to do
+   * something. They are matched early for the same reason the interrupts are:
+   * what the operator is asking for is unambiguous and immediate.
+   */
+  {
+    intent: 'OPEN_INPUT',
+    patterns: [
+      /\blaat me (?:iets )?(?:typen|intypen|schrijven)\b/i,
+      /\b(?:ik wil|mag ik) (?:iets )?(?:typen|intypen|schrijven)\b/i,
+      /\blet me type\b/i,
+      /\b(?:open|show|give me) the (?:keyboard|input|command line|prompt)\b/i,
+      /\btoetsenbord\b/i,
+    ],
+    objective: () => 'Open the typing field.',
+  },
+  {
+    intent: 'HIDE_DETAIL',
+    patterns: [
+      /\b(?:verberg|weg met|sluit)(?: de)? (?:details?|panelen|alles)\b/i,
+      /\bhide (?:the )?(?:details?|panels?|everything)\b/i,
+      /\b(?:maak het|make it) (?:leeg|stil|clean|quiet|empty)\b/i,
+      /\bverberg\b/i,
+    ],
+    objective: () => 'Hide the panels and return to the working view.',
+  },
+  {
+    intent: 'SHOW_DETAIL',
+    patterns: [
+      /\b(?:laat|toon)(?: me| mij)? (?:de )?(?:details?|panelen|gegevens|cijfers|alles)\b/i,
+      /\bshow (?:me )?(?:the )?(?:details?|panels?|everything|the numbers)\b/i,
+      /\bopen (?:the )?(?:command cent|dashboard)/i,
+      /\bdetails\b/i,
+    ],
+    objective: () => 'Show the detailed panels.',
+  },
   {
     intent: 'STATUS',
     patterns: [/\b(status|what are you doing|wat doe je|voortgang|progress|where are you)\b/i],

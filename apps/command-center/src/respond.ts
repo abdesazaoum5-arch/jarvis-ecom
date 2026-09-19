@@ -27,6 +27,11 @@ export interface Reply {
   speech: string;
   /** Structured payload for the interface, when there is one. */
   data: Record<string, unknown> | null;
+  /**
+   * What the operator asked to be shown. The interface obeys this; the system
+   * does no work for it, which is why these never touch mission state.
+   */
+  view?: 'detail' | 'plain' | 'input';
 }
 
 export async function respond(utterance: string): Promise<Reply> {
@@ -55,6 +60,12 @@ export async function respond(utterance: string): Promise<Reply> {
       const extra = level >= 5 ? ' Spending still needs a separate explicit authorisation — I will not commit money on this alone.' : '';
       return { intent: reading.intent, speech: `Permission level ${level}: ${permissions.LEVELS[level as 0]}.${extra}`, data: { permissions: state } };
     }
+    case 'SHOW_DETAIL':
+      return { intent: reading.intent, speech: 'Showing the detail.', data: null, view: 'detail' };
+    case 'HIDE_DETAIL':
+      return { intent: reading.intent, speech: 'Clearing it away.', data: null, view: 'plain' };
+    case 'OPEN_INPUT':
+      return { intent: reading.intent, speech: 'Go ahead.', data: null, view: 'input' };
     case 'STATUS':
       return status();
     case 'EXPLAIN':
